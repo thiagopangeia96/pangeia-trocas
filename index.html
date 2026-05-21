@@ -223,26 +223,16 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 <div class="toast" id="toast"></div>
 
 <script>
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydTkhsJcRsoSvP6-6_ZFXwFbDmxV3MJflH712XNJT6Eqkr7ldBDCIx5eY_6uuawovlCQ/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLc92RwWmCb7_9jCjIExXdoCZbG1YQTN9HAVrNZ20r5tGSqtFe41UsH82Mn6lHHnxyBA/exec';
 
-// JSONP — resolve CORS com Apps Script
-var _cbCount = 0;
 function chamarScript(params, callback) {
-  var cbName = '_cb' + (++_cbCount);
-  params.callback = cbName;
   var url = SCRIPT_URL + '?' + Object.keys(params).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
-  }).join('&');
-  window[cbName] = function(data){
-    delete window[cbName];
-    document.head.removeChild(document.getElementById(cbName));
-    callback(data);
-  };
-  var s = document.createElement('script');
-  s.id = cbName;
-  s.src = url;
-  s.onerror = function(){ callback({erro:'Erro de conexão'}); };
-  document.head.appendChild(s);
+  }).join('&') + '&t=' + Date.now();
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(callback)
+    .catch(function(){ callback({erro:'Erro de conexão'}); });
 }
 
 var pecasImportadas = [];

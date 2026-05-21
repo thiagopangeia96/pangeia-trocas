@@ -225,6 +225,26 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 <script>
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydTkhsJcRsoSvP6-6_ZFXwFbDmxV3MJflH712XNJT6Eqkr7ldBDCIx5eY_6uuawovlCQ/exec';
 
+// JSONP — resolve CORS com Apps Script
+var _cbCount = 0;
+function chamarScript(params, callback) {
+  var cbName = '_cb' + (++_cbCount);
+  params.callback = cbName;
+  var url = SCRIPT_URL + '?' + Object.keys(params).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  }).join('&');
+  window[cbName] = function(data){
+    delete window[cbName];
+    document.head.removeChild(document.getElementById(cbName));
+    callback(data);
+  };
+  var s = document.createElement('script');
+  s.id = cbName;
+  s.src = url;
+  s.onerror = function(){ callback({erro:'Erro de conexão'}); };
+  document.head.appendChild(s);
+}
+
 var pecasImportadas = [];
 var lotesCache = [];
 var loteAtual = null;
@@ -360,33 +380,42 @@ function criarLote(){
 
   var dataBR = data.split('-').reverse().join('/');
   toast('Criando lote...');
-  var dados = {nome:nome, data:dataBR, pecas:pecasImportadas};
-  fetch(SCRIPT_URL+'?acao=criarLote&dados='+encodeURIComponent(JSON.stringify(dados))+'&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
-    if(d.ok){
-      toast('✅ Lote '+d.id+' criado com '+d.total+' peças!');
+  // Dividir em chunks de 30 peças para não estourar a URL
+  var CHUNK = 30;
+  var chunks = [];
+  for(var i=0;i<pecasImportadas.length;i+=CHUNK) chunks.push(pecasImportadas.slice(i,i+CHUNK));
+  var loteId = null;
+  toast('Criando lote ('+chunks.length+' partes)...');
+  function enviarChunk(idx){
+    if(idx>=chunks.length){
+      toast('✅ Lote criado com '+pecasImportadas.length+' peças!');
       document.getElementById('tNome').value='';
       pecasImportadas=[];
       document.getElementById('previewArea').style.display='none';
       document.getElementById('uploadZone').style.borderColor='';
       document.getElementById('uploadZone').style.background='';
       document.getElementById('fileInput').value='';
-      carregarLotes();
-    } else {toast('Erro: '+(d.erro||'desconhecido'));}
-  }).catch(function(){toast('Erro de conexão.');});
+      carregarLotes(); return;
+    }
+    var isFirst=idx===0;
+    var dados={nome:isFirst?nome:'',data:isFirst?dataBR:'',id:loteId||'',primeiroChunk:isFirst,pecas:chunks[idx]};
+    chamarScript({acao:'criarLoteChunk',dados:JSON.stringify(dados),t:Date.now()}, function(d){
+      if(d.ok){ if(d.id) loteId=d.id; toast('Enviando... '+(idx+1)+'/'+chunks.length); enviarChunk(idx+1); }
+      else{ toast('Erro: '+(d.erro||'desconhecido')); }
+    });
+  }
+  enviarChunk(0);
 }
 
 // ── CARREGAR LOTES ─────────────────────────────────────────────────────────
 function carregarLotes(){
-  fetch(SCRIPT_URL+'?acao=listarLotes&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
+  chamarScript({acao:'listarLotes',t:Date.now()}, function(d){
+    if(d.erro){toast('Erro: '+d.erro);return;}
     lotesCache = d.lotes||[];
     renderLotesTrocas();
     renderAcabamentoLotes();
     renderWandersonLotes();
-  }).catch(function(){toast('Erro ao carregar lotes.');});
+  });
 }
 
 function statusPill(s){
@@ -449,12 +478,11 @@ function abrirConferencia(id){
   confEl.style.display='block';
   confEl.innerHTML='<div class="loading"><div class="spin"></div>Carregando peças...</div>';
 
-  fetch(SCRIPT_URL+'?acao=pecasLote&id='+id+'&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
+  chamarScript({acao:'pecasLote',id:id,t:Date.now()}, function(d){
+    if(d.erro){toast('Erro: '+d.erro);return;}
     pecasConferencia = d.pecas||[];
     renderConferencia();
-  }).catch(function(){toast('Erro ao carregar peças.');});
+  });
 }
 
 function renderConferencia(){
@@ -559,16 +587,14 @@ function finalizarConferencia(){
     };
   });
   toast('Finalizando conferência...');
-  var dados2 = {id:loteAtual.id, pecas:pecas, extras:extrasConferencia};
-  fetch(SCRIPT_URL+'?acao=finalizarAcabamento&dados='+encodeURIComponent(JSON.stringify(dados2))+'&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
+  var d2={id:loteAtual.id,pecas:pecas,extras:extrasConferencia};
+  chamarScript({acao:'finalizarAcabamento',dados:JSON.stringify(d2),t:Date.now()}, function(d){
     if(d.ok){
       toast('✅ Conferência finalizada! Lote aguardando transferência.');
       voltarAcabamento();
       carregarLotes();
     }else{toast('Erro: '+(d.erro||'desconhecido'));}
-  }).catch(function(){toast('Erro de conexão.');});
+  });
 }
 
 // ── ABA WANDERSON ──────────────────────────────────────────────────────────
@@ -599,9 +625,7 @@ function renderWandersonLotes(){
 
 function gerarArquivos(id){
   toast('Carregando peças...');
-  fetch(SCRIPT_URL+'?acao=pecasLote&id='+id+'&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
+  chamarScript({acao:'pecasLote',id:id,t:Date.now()}, function(d){
     var pecas = d.pecas||[];
     if(!pecas.length){toast('Nenhuma peça encontrada.');return;}
     var status = ['ok','conserto','lavagem','bazar','falta'];
@@ -622,17 +646,15 @@ function gerarArquivos(id){
       gerados++;
     });
     toast('✅ '+gerados+' arquivo(s) gerado(s)!');
-  }).catch(function(){toast('Erro ao gerar arquivos.');});
+  });
 }
 
 function finalizarLote(id){
   if(!confirm('Confirmar finalização do lote '+id+'?')) return;
-  fetch(SCRIPT_URL+'?acao=finalizarTransferencia&dados='+encodeURIComponent(JSON.stringify({id:id}))+'&t='+Date.now())
-  .then(function(r){return r.json();})
-  .then(function(d){
+  chamarScript({acao:'finalizarTransferencia',dados:JSON.stringify({id:id}),t:Date.now()}, function(d){
     if(d.ok){toast('🏁 Lote finalizado e transferido!');carregarLotes();}
     else{toast('Erro: '+(d.erro||'desconhecido'));}
-  }).catch(function(){toast('Erro de conexão.');});
+  });
 }
 
 function baixarModelo(){

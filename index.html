@@ -149,6 +149,11 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
       <label>Data do lote</label>
       <input type="date" id="tData">
     </div>
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-secondary btn-sm" onclick="baixarModelo()" style="width:auto;">
+        📥 Baixar planilha modelo
+      </button>
+    </div>
     <div class="field">
       <label>Upload da planilha Excel</label>
       <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
@@ -218,7 +223,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 <div class="toast" id="toast"></div>
 
 <script>
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydTkhsJcRsoSvP6-6_ZFXwFbDmxV3MJflH712XNJT6Eqkr7ldBDCIx5eY_6uuawovlCQ/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1WpSjfu-djS-Aeg_TaZJVzwHKvquwNgugEcQSkaJPjGwyZiNHgI6WKjnBA--yButA/exec';
 
 var pecasImportadas = [];
 var lotesCache = [];
@@ -266,31 +271,65 @@ function processarArquivo(file){
     try{
       var wb = XLSX.read(e.target.result, {type:'array'});
       var ws = wb.Sheets[wb.SheetNames[0]];
-      var dados = XLSX.utils.sheet_to_json(ws, {defval:''});
-      if(!dados.length){toast('Planilha vazia ou formato inválido.');return;}
-      
-      // Mapear colunas flexível
-      pecasImportadas = dados.map(function(row){
-        var keys = Object.keys(row);
-        function find(terms){
-          var k = keys.find(function(k){return terms.some(function(t){return k.toUpperCase().indexOf(t)>=0;});});
-          return k ? (row[k]||'').toString().trim() : '';
-        }
-        var qtd = find(['QTD','QUANT','SUM OF','TOTAL','QT']);
-        return{
-          sku:find(['SKU','COD','CODIGO']),
-          modelo:find(['MODELO','MODEL','NOME']),
-          tipo:find(['TIPO','TYPE','CATEGOR']),
-          cor:find(['COR','COLOR','COLOUR']),
-          tam:find(['TAM','SIZE','TAMAN']),
-          qtd: parseInt(qtd)||1
-        };
-      }).filter(function(p){return p.qtd>0;});
 
-      if(!pecasImportadas.length){toast('Nenhuma peça válida encontrada.');return;}
+      // Converter para array de arrays para controle total das linhas
+      var aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Encontrar a linha de cabeçalho (que contém SKU ou MODELO)
+      var headerRow = -1;
+      for(var i=0;i<Math.min(10,aoa.length);i++){
+        var row = aoa[i].map(function(v){return(v||'').toString().toUpperCase();});
+        if(row.some(function(v){return v.indexOf('SKU')>=0||v.indexOf('MODELO')>=0;})){
+          headerRow = i; break;
+        }
+      }
+      if(headerRow<0){toast('Cabeçalho não encontrado. Verifique o arquivo.');return;}
+
+      var headers = aoa[headerRow].map(function(v){ var s=(v||'').toString(); while(s.indexOf('\n')>=0){s=s.replace('\n',' ');} return s.toUpperCase().trim(); });
+
+      // Função para achar índice da coluna
+      function colIdx(terms){
+        return headers.findIndex(function(h){
+          return terms.some(function(t){return h.indexOf(t)>=0;});
+        });
+      }
+
+      var iSku   = colIdx(['SKU','COD']);
+      var iMod   = colIdx(['MODELO','MODEL','NOME']);
+      var iTipo  = colIdx(['TIPO','TYPE','CATEG']);
+      var iCor   = colIdx(['COR','COLOR']);
+      var iTam   = colIdx(['TAM','SIZE']);
+      var iQtd   = colIdx(['SUM OF QTD','SUM OF','QTD','QUANT','TOTAL']);
+
+      if(iMod<0||iQtd<0){toast('Colunas MODELO ou QTD não encontradas.');return;}
+
+      // Processar linhas de dados (após o cabeçalho)
+      pecasImportadas = [];
+      for(var j=headerRow+1;j<aoa.length;j++){
+        var row = aoa[j];
+        var modelo = iMod>=0?(row[iMod]||'').toString().trim():'';
+        var qtdRaw = iQtd>=0?(row[iQtd]||0):0;
+        var qtd = parseInt(qtdRaw)||0;
+
+        // Ignorar linha Grand Total, linhas vazias e linhas sem modelo
+        if(!modelo||modelo.toUpperCase().indexOf('GRAND TOTAL')>=0||modelo.toUpperCase().indexOf('TOTAL')===0) continue;
+        if(qtd<=0) continue;
+
+        pecasImportadas.push({
+          sku:   iSku>=0 ?(row[iSku]||'').toString().trim():'',
+          modelo:modelo.toUpperCase(),
+          tipo:  iTipo>=0?(row[iTipo]||'').toString().trim():'',
+          cor:   iCor>=0 ?(row[iCor]||'').toString().trim().toUpperCase():'',
+          tam:   iTam>=0 ?(row[iTam]||'').toString().trim().toUpperCase():'',
+          qtd:   qtd
+        });
+      }
+
+      if(!pecasImportadas.length){toast('Nenhuma peça válida encontrada no arquivo.');return;}
       renderPreview();
       document.getElementById('uploadZone').style.borderColor='var(--ok)';
       document.getElementById('uploadZone').style.background='var(--ok-bg)';
+      document.getElementById('uploadZone').querySelector('p').textContent = file.name+' — '+pecasImportadas.length+' SKUs lidos ✅';
     }catch(err){toast('Erro ao ler arquivo: '+err.message);}
   };
   reader.readAsArrayBuffer(file);
@@ -598,6 +637,23 @@ function finalizarLote(id){
     if(d.ok){toast('🏁 Lote finalizado e transferido!');carregarLotes();}
     else{toast('Erro: '+(d.erro||'desconhecido'));}
   }).catch(function(){toast('Erro de conexão.');});
+}
+
+function baixarModelo(){
+  var wb = XLSX.utils.book_new();
+  var dados = [
+    ['SKU','MODELO','TIPO','COR','TAM','QTD'],
+    ['PNGC1234','TEDDY','Calça','PRETO','38',2],
+    ['PNGB4060','BARBARA','Top','BRANCO','M',1],
+    ['','','','','','']
+  ];
+  var ws = XLSX.utils.aoa_to_sheet(dados);
+  ws['!cols']=[{wch:14},{wch:16},{wch:12},{wch:14},{wch:8},{wch:8}];
+  // Estilo do cabeçalho (cor de fundo)
+  ws['!rows']=[{hpt:18}];
+  XLSX.utils.book_append_sheet(wb, ws, 'LOTE');
+  XLSX.writeFile(wb, 'modelo_lote_trocas.xlsx');
+  toast('📥 Modelo baixado!');
 }
 
 function toast(msg){

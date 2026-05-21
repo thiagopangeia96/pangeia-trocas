@@ -360,10 +360,9 @@ function criarLote(){
 
   var dataBR = data.split('-').reverse().join('/');
   toast('Criando lote...');
-  fetch(SCRIPT_URL, {
-    method:'POST',
-    body:JSON.stringify({acao:'criarLote', nome:nome, data:dataBR, pecas:pecasImportadas})
-  }).then(function(r){return r.json();})
+  var dados = {nome:nome, data:dataBR, pecas:pecasImportadas};
+  fetch(SCRIPT_URL+'?acao=criarLote&dados='+encodeURIComponent(JSON.stringify(dados))+'&t='+Date.now())
+  .then(function(r){return r.json();})
   .then(function(d){
     if(d.ok){
       toast('✅ Lote '+d.id+' criado com '+d.total+' peças!');
@@ -560,10 +559,9 @@ function finalizarConferencia(){
     };
   });
   toast('Finalizando conferência...');
-  fetch(SCRIPT_URL,{
-    method:'POST',
-    body:JSON.stringify({acao:'finalizarAcabamento',id:loteAtual.id,pecas:pecas,extras:extrasConferencia})
-  }).then(function(r){return r.json();})
+  var dados2 = {id:loteAtual.id, pecas:pecas, extras:extrasConferencia};
+  fetch(SCRIPT_URL+'?acao=finalizarAcabamento&dados='+encodeURIComponent(JSON.stringify(dados2))+'&t='+Date.now())
+  .then(function(r){return r.json();})
   .then(function(d){
     if(d.ok){
       toast('✅ Conferência finalizada! Lote aguardando transferência.');
@@ -629,10 +627,8 @@ function gerarArquivos(id){
 
 function finalizarLote(id){
   if(!confirm('Confirmar finalização do lote '+id+'?')) return;
-  fetch(SCRIPT_URL,{
-    method:'POST',
-    body:JSON.stringify({acao:'finalizarTransferencia',id:id})
-  }).then(function(r){return r.json();})
+  fetch(SCRIPT_URL+'?acao=finalizarTransferencia&dados='+encodeURIComponent(JSON.stringify({id:id}))+'&t='+Date.now())
+  .then(function(r){return r.json();})
   .then(function(d){
     if(d.ok){toast('🏁 Lote finalizado e transferido!');carregarLotes();}
     else{toast('Erro: '+(d.erro||'desconhecido'));}

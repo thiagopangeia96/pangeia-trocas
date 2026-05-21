@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pangeia · Trocas e Devoluções</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --roxo:#592C95;--roxo-esc:#3D1B6B;--roxo-cl:#AE76E5;
+  --lav:#E4D4F9;--lav-l:#F5EEFB;--amarelo:#FFD23F;
+  --txt:#2A1655;--txt-s:#6B5B8E;--brd:#D9C7F0;
+  --ok:#0F6E56;--ok-bg:#dcfce7;--ok-txt:#166534;
+  --warn:#854F0B;--warn-bg:#fef3c7;--warn-txt:#854d0e;
+  --bad:#A32D2D;--bad-bg:#fee2e2;--bad-txt:#991b1b;
+  --info:#185FA5;--info-bg:#dbeafe;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);color:var(--txt);min-height:100vh;}
+.topbar{background:linear-gradient(135deg,var(--roxo),var(--roxo-esc));padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;}
+.topbar h1{font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;}
+.brand{background:var(--amarelo);color:var(--roxo-esc);padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;}
+
+/* MENU ABAS */
+.menu{display:flex;background:#fff;border-bottom:2px solid var(--lav);position:sticky;top:50px;z-index:99;}
+.menu-btn{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--txt-s);border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;}
+.menu-btn.active{color:var(--roxo);border-bottom-color:var(--roxo);background:var(--lav-l);}
+.menu-btn .icon{font-size:18px;display:block;margin-bottom:2px;}
+.tab-content{display:none;padding:16px;max-width:800px;margin:0 auto;}
+.tab-content.active{display:block;}
+
+/* CARDS */
+.card{background:#fff;border-radius:14px;border:1px solid var(--brd);padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(89,44,149,.06);}
+.card-title{font-size:12px;font-weight:800;color:var(--roxo);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+
+/* INPUTS */
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--txt-s);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:11px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;font-family:inherit;outline:none;color:var(--txt);background:#fff;transition:border-color .15s;}
+.field input:focus,.field select:focus{border-color:var(--roxo);}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--lav);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--lav-l);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--roxo);background:#fff;}
+.upload-zone .icon{font-size:40px;margin-bottom:8px;}
+.upload-zone p{font-size:13px;color:var(--txt-s);}
+.upload-zone strong{color:var(--roxo);}
+#fileInput{display:none;}
+
+/* BOTÕES */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .15s;width:100%;justify-content:center;}
+.btn-primary{background:linear-gradient(135deg,var(--roxo),var(--roxo-esc));color:#fff;box-shadow:0 4px 14px rgba(89,44,149,.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(89,44,149,.4);}
+.btn-secondary{background:#fff;color:var(--roxo);border:1.5px solid var(--roxo);}
+.btn-success{background:linear-gradient(135deg,var(--ok),#0a5a45);color:#fff;}
+.btn-warn{background:linear-gradient(135deg,#d97706,#b45309);color:#fff;}
+.btn-sm{padding:7px 14px;font-size:12px;width:auto;}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* PREVIEW PEÇAS */
+.peca-preview{background:var(--lav-l);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+.peca-preview .desc{font-weight:600;color:var(--txt);}
+.peca-preview .qtd{background:var(--roxo);color:#fff;padding:2px 10px;border-radius:8px;font-weight:700;font-size:12px;}
+
+/* STATUS PILLS */
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;}
+.pill-aguardando{background:#fef3c7;color:#854d0e;}
+.pill-conferencia{background:#dbeafe;color:#1e40af;}
+.pill-transferencia{background:var(--lav);color:var(--roxo);}
+.pill-finalizado{background:var(--ok-bg);color:var(--ok-txt);}
+
+/* LOTE CARD */
+.lote-card{background:#fff;border-radius:12px;border:1px solid var(--brd);padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(89,44,149,.05);}
+.lote-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.lote-nome{font-size:14px;font-weight:800;color:var(--txt);}
+.lote-id{font-size:10px;color:var(--txt-s);font-family:monospace;margin-top:2px;}
+.lote-info{display:flex;gap:12px;font-size:11px;color:var(--txt-s);flex-wrap:wrap;}
+
+/* CONFERÊNCIA */
+.peca-item{background:#fff;border-radius:12px;border:1px solid var(--brd);padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(89,44,149,.05);}
+.peca-desc{font-size:14px;font-weight:800;color:var(--txt);margin-bottom:4px;}
+.peca-sku{font-size:11px;color:var(--txt-s);font-family:monospace;margin-bottom:10px;}
+.peca-qtd-orig{font-size:12px;color:var(--txt-s);margin-bottom:10px;background:var(--lav-l);padding:5px 10px;border-radius:6px;display:inline-block;}
+.campos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.campo-box{background:var(--lav-l);border-radius:8px;padding:8px 10px;}
+.campo-box label{display:block;font-size:10px;font-weight:700;color:var(--txt-s);text-transform:uppercase;margin-bottom:5px;}
+.campo-box input{width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--brd);font-size:16px;font-weight:700;color:var(--roxo);padding:4px 0;outline:none;font-family:inherit;text-align:center;}
+.campo-box.ok-box{background:var(--ok-bg);}
+.campo-box.ok-box input{color:var(--ok);}
+.campo-box.warn-box{background:var(--warn-bg);}
+.campo-box.bad-box{background:var(--bad-bg);}
+.campo-box.info-box{background:var(--info-bg);}
+
+/* MODAL EXTRA */
+.modal-overlay{position:fixed;inset:0;background:rgba(42,22,85,.3);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-title{font-size:16px;font-weight:800;color:var(--txt);margin-bottom:16px;display:flex;justify-content:space-between;}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt-s);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--roxo);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;font-size:13px;box-shadow:0 8px 24px rgba(89,44,149,.3);opacity:0;transition:all .25s;pointer-events:none;z-index:400;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* SEÇÃO VAZIA */
+.empty{text-align:center;padding:40px 20px;color:var(--txt-s);}
+.empty .icon{font-size:48px;margin-bottom:12px;}
+.empty p{font-size:14px;}
+
+.divider{height:1px;background:var(--lav);margin:14px 0;}
+.section-title{font-size:11px;font-weight:700;color:var(--txt-s);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--txt-s);}
+.spin{width:28px;height:28px;border:3px solid var(--lav);border-top-color:var(--roxo);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1><span class="brand">PANGEIA 96</span> Trocas e Devoluções</h1>
+  <button onclick="carregarLotes()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">↺ Atualizar</button>
+</div>
+
+<div class="menu">
+  <button class="menu-btn active" onclick="irAba('trocas',this)" id="btnTrocas">
+    <span class="icon">📦</span>Trocas
+  </button>
+  <button class="menu-btn" onclick="irAba('acabamento',this)" id="btnAcabamento">
+    <span class="icon">✅</span>Acabamento
+  </button>
+  <button class="menu-btn" onclick="irAba('wanderson',this)" id="btnWanderson">
+    <span class="icon">🔄</span>Transferência
+  </button>
+</div>
+
+<!-- ══ ABA TROCAS ══════════════════════════════════════════════════════════ -->
+<div class="tab-content active" id="aba-trocas">
+
+  <div class="card">
+    <div class="card-title">Criar novo lote</div>
+    <div class="field">
+      <label>Nome do lote</label>
+      <input type="text" id="tNome" placeholder="Ex: Devolução Semana 20">
+    </div>
+    <div class="field">
+      <label>Data do lote</label>
+      <input type="date" id="tData">
+    </div>
+    <div class="field">
+      <label>Upload da planilha Excel</label>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📊</div>
+        <p><strong>Clique para selecionar</strong> ou arraste o arquivo</p>
+        <p style="margin-top:4px;font-size:11px;">Formato: .xlsx com colunas SKU, MODELO, TIPO, COR, TAM, QTD</p>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="lerExcel(this)">
+    </div>
+
+    <div id="previewArea" style="display:none">
+      <div class="divider"></div>
+      <div class="section-title">📋 Peças identificadas</div>
+      <div id="previewLista"></div>
+      <div style="margin-top:12px;background:var(--lav-l);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--roxo)" id="previewTotal"></div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="criarLote()">📤 Criar lote e enviar para conferência</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">📋 Lotes criados</div>
+  <div id="lotesListaTrocas">
+    <div class="loading"><div class="spin"></div>Carregando...</div>
+  </div>
+</div>
+
+<!-- ══ ABA ACABAMENTO ══════════════════════════════════════════════════════ -->
+<div class="tab-content" id="aba-acabamento">
+  <div id="acabamento-lotes">
+    <div class="loading"><div class="spin"></div>Carregando...</div>
+  </div>
+  <div id="acabamento-conferencia" style="display:none"></div>
+</div>
+
+<!-- ══ ABA WANDERSON ═══════════════════════════════════════════════════════ -->
+<div class="tab-content" id="aba-wanderson">
+  <div id="wanderson-lotes">
+    <div class="loading"><div class="spin"></div>Carregando...</div>
+  </div>
+</div>
+
+<!-- MODAL PEÇA EXTRA -->
+<div class="modal-overlay" id="modalExtra">
+  <div class="modal">
+    <div class="modal-title">
+      ➕ Adicionar peça extra
+      <button class="modal-close" onclick="fecharModal()">×</button>
+    </div>
+    <div class="field"><label>SKU</label><input type="text" id="exSku" placeholder="PNGC1234"></div>
+    <div class="field"><label>Modelo</label><input type="text" id="exModelo" placeholder="TEDDY"></div>
+    <div class="field"><label>Tipo</label><input type="text" id="exTipo" placeholder="Calça"></div>
+    <div class="field"><label>Cor</label><input type="text" id="exCor" placeholder="PRETO"></div>
+    <div class="field"><label>Tamanho</label><input type="text" id="exTam" placeholder="M"></div>
+    <div class="field"><label>Quantidade recebida</label><input type="number" id="exQtd" placeholder="0" min="1"></div>
+    <div class="campos-grid" style="margin-bottom:12px;">
+      <div class="campo-box ok-box"><label>OK</label><input type="number" id="exOk" placeholder="0" min="0" oninput="calcExOk()"></div>
+      <div class="campo-box warn-box"><label>Conserto</label><input type="number" id="exConserto" placeholder="0" min="0" oninput="calcExOk()"></div>
+      <div class="campo-box warn-box"><label>Lavagem</label><input type="number" id="exLavagem" placeholder="0" min="0" oninput="calcExOk()"></div>
+      <div class="campo-box bad-box"><label>Bazar/Perda</label><input type="number" id="exBazar" placeholder="0" min="0" oninput="calcExOk()"></div>
+      <div class="campo-box info-box"><label>Falta</label><input type="number" id="exFalta" placeholder="0" min="0" oninput="calcExOk()"></div>
+    </div>
+    <button class="btn btn-primary" onclick="confirmarExtra()">✅ Adicionar peça</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydTkhsJcRsoSvP6-6_ZFXwFbDmxV3MJflH712XNJT6Eqkr7ldBDCIx5eY_6uuawovlCQ/exec';
+
+var pecasImportadas = [];
+var lotesCache = [];
+var loteAtual = null;
+var pecasConferencia = [];
+var extrasConferencia = [];
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+window.addEventListener('load', function(){
+  var hoje = new Date();
+  document.getElementById('tData').value = hoje.toISOString().split('T')[0];
+  carregarLotes();
+  configurarDragDrop();
+});
+
+function configurarDragDrop(){
+  var zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', function(e){e.preventDefault();zone.classList.add('drag');});
+  zone.addEventListener('dragleave', function(){zone.classList.remove('drag');});
+  zone.addEventListener('drop', function(e){
+    e.preventDefault();zone.classList.remove('drag');
+    var file = e.dataTransfer.files[0];
+    if(file) processarArquivo(file);
+  });
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function irAba(id, btn){
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.menu-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('aba-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='acabamento') renderAcabamentoLotes();
+  if(id==='wanderson')  renderWandersonLotes();
+}
+
+// ── EXCEL ──────────────────────────────────────────────────────────────────
+function lerExcel(input){
+  if(input.files && input.files[0]) processarArquivo(input.files[0]);
+}
+
+function processarArquivo(file){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var dados = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!dados.length){toast('Planilha vazia ou formato inválido.');return;}
+      
+      // Mapear colunas flexível
+      pecasImportadas = dados.map(function(row){
+        var keys = Object.keys(row);
+        function find(terms){
+          var k = keys.find(function(k){return terms.some(function(t){return k.toUpperCase().indexOf(t)>=0;});});
+          return k ? (row[k]||'').toString().trim() : '';
+        }
+        var qtd = find(['QTD','QUANT','SUM OF','TOTAL','QT']);
+        return{
+          sku:find(['SKU','COD','CODIGO']),
+          modelo:find(['MODELO','MODEL','NOME']),
+          tipo:find(['TIPO','TYPE','CATEGOR']),
+          cor:find(['COR','COLOR','COLOUR']),
+          tam:find(['TAM','SIZE','TAMAN']),
+          qtd: parseInt(qtd)||1
+        };
+      }).filter(function(p){return p.qtd>0;});
+
+      if(!pecasImportadas.length){toast('Nenhuma peça válida encontrada.');return;}
+      renderPreview();
+      document.getElementById('uploadZone').style.borderColor='var(--ok)';
+      document.getElementById('uploadZone').style.background='var(--ok-bg)';
+    }catch(err){toast('Erro ao ler arquivo: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderPreview(){
+  var lista = document.getElementById('previewLista');
+  lista.innerHTML = '';
+  pecasImportadas.forEach(function(p){
+    lista.innerHTML += '<div class="peca-preview">'
+      +'<span class="desc">'+(p.sku?'<span style="font-family:monospace;font-size:11px;color:var(--txt-s)">'+p.sku+'</span><br>':'')
+      +p.modelo+' — '+p.tipo+' | '+p.cor+' | '+p.tam+'</span>'
+      +'<span class="qtd">'+p.qtd+' pç</span></div>';
+  });
+  document.getElementById('previewTotal').textContent
+    = pecasImportadas.length + ' SKUs · '
+    + pecasImportadas.reduce(function(s,p){return s+p.qtd;},0) + ' peças no total';
+  document.getElementById('previewArea').style.display = 'block';
+}
+
+// ── CRIAR LOTE ─────────────────────────────────────────────────────────────
+function criarLote(){
+  var nome = document.getElementById('tNome').value.trim();
+  var data = document.getElementById('tData').value;
+  if(!nome){toast('Informe o nome do lote.');return;}
+  if(!data){toast('Informe a data do lote.');return;}
+  if(!pecasImportadas.length){toast('Faça o upload da planilha primeiro.');return;}
+
+  var dataBR = data.split('-').reverse().join('/');
+  toast('Criando lote...');
+  fetch(SCRIPT_URL, {
+    method:'POST',
+    body:JSON.stringify({acao:'criarLote', nome:nome, data:dataBR, pecas:pecasImportadas})
+  }).then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      toast('✅ Lote '+d.id+' criado com '+d.total+' peças!');
+      document.getElementById('tNome').value='';
+      pecasImportadas=[];
+      document.getElementById('previewArea').style.display='none';
+      document.getElementById('uploadZone').style.borderColor='';
+      document.getElementById('uploadZone').style.background='';
+      document.getElementById('fileInput').value='';
+      carregarLotes();
+    } else {toast('Erro: '+(d.erro||'desconhecido'));}
+  }).catch(function(){toast('Erro de conexão.');});
+}
+
+// ── CARREGAR LOTES ─────────────────────────────────────────────────────────
+function carregarLotes(){
+  fetch(SCRIPT_URL+'?acao=listarLotes&t='+Date.now())
+  .then(function(r){return r.json();})
+  .then(function(d){
+    lotesCache = d.lotes||[];
+    renderLotesTrocas();
+    renderAcabamentoLotes();
+    renderWandersonLotes();
+  }).catch(function(){toast('Erro ao carregar lotes.');});
+}
+
+function statusPill(s){
+  var m={
+    'AGUARDANDO CONFERÊNCIA':'pill-aguardando',
+    'EM CONFERÊNCIA':'pill-conferencia',
+    'AGUARDANDO TRANSFERÊNCIA':'pill-transferencia',
+    'FINALIZADO':'pill-finalizado'
+  };
+  return '<span class="pill '+(m[s]||'')+'">'+s+'</span>';
+}
+
+function renderLotesTrocas(){
+  var el = document.getElementById('lotesListaTrocas');
+  if(!lotesCache.length){
+    el.innerHTML='<div class="empty"><div class="icon">📦</div><p>Nenhum lote criado ainda</p></div>';return;
+  }
+  el.innerHTML = lotesCache.map(function(l){
+    return '<div class="lote-card">'
+      +'<div class="lote-header"><div><div class="lote-nome">'+l.nome+'</div>'
+      +'<div class="lote-id">'+l.id+'</div></div>'
+      +statusPill(l.status)+'</div>'
+      +'<div class="lote-info">'
+      +'<span>📅 '+l.data+'</span>'
+      +'<span>📋 '+l.totalPecas+' SKUs</span>'
+      +(l.acabamento?'<span>✅ Conferido: '+l.acabamento+'</span>':'')
+      +(l.transferencia?'<span>🔄 Transferido: '+l.transferencia+'</span>':'')
+      +'</div></div>';
+  }).join('');
+}
+
+// ── ABA ACABAMENTO ─────────────────────────────────────────────────────────
+function renderAcabamentoLotes(){
+  var el = document.getElementById('acabamento-lotes');
+  var disponiveis = lotesCache.filter(function(l){
+    return l.status==='AGUARDANDO CONFERÊNCIA'||l.status==='EM CONFERÊNCIA';
+  });
+  if(!disponiveis.length){
+    el.innerHTML='<div class="empty"><div class="icon">✅</div><p>Nenhum lote aguardando conferência</p></div>';return;
+  }
+  el.style.display='block';
+  el.innerHTML = '<div class="section-title">Lotes para conferir</div>'
+    + disponiveis.map(function(l){
+      return '<div class="lote-card">'
+        +'<div class="lote-header"><div><div class="lote-nome">'+l.nome+'</div>'
+        +'<div class="lote-id">'+l.id+' · '+l.data+'</div></div>'
+        +statusPill(l.status)+'</div>'
+        +'<div class="lote-info"><span>📋 '+l.totalPecas+' SKUs</span></div>'
+        +'<div style="margin-top:10px;">'
+        +'<button class="btn btn-primary btn-sm" onclick="abrirConferencia(\''+l.id+'\')">✅ Iniciar conferência</button>'
+        +'</div></div>';
+    }).join('');
+}
+
+function abrirConferencia(id){
+  loteAtual = lotesCache.find(function(l){return l.id===id;});
+  extrasConferencia = [];
+  document.getElementById('acabamento-lotes').style.display='none';
+  var confEl = document.getElementById('acabamento-conferencia');
+  confEl.style.display='block';
+  confEl.innerHTML='<div class="loading"><div class="spin"></div>Carregando peças...</div>';
+
+  fetch(SCRIPT_URL+'?acao=pecasLote&id='+id+'&t='+Date.now())
+  .then(function(r){return r.json();})
+  .then(function(d){
+    pecasConferencia = d.pecas||[];
+    renderConferencia();
+  }).catch(function(){toast('Erro ao carregar peças.');});
+}
+
+function renderConferencia(){
+  var confEl = document.getElementById('acabamento-conferencia');
+  var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+    +'<button onclick="voltarAcabamento()" style="background:none;border:none;font-size:20px;cursor:pointer;">←</button>'
+    +'<div><div style="font-size:16px;font-weight:800;color:var(--txt)">'+loteAtual.nome+'</div>'
+    +'<div style="font-size:11px;color:var(--txt-s)">'+loteAtual.id+' · '+pecasConferencia.length+' SKUs</div></div></div>';
+
+  pecasConferencia.forEach(function(p, i){
+    var qtd = Number(p.qtdOriginal)||0;
+    var okVal = p.ok!==''?p.ok:qtd;
+    html += '<div class="peca-item" id="peca-'+i+'">'
+      +'<div class="peca-desc">'+(p.modelo||'—')+' — '+(p.tipo||'—')+' | '+(p.cor||'—')+' | '+(p.tam||'—')+'</div>'
+      +(p.sku?'<div class="peca-sku">'+p.sku+'</div>':'')
+      +'<div class="peca-qtd-orig">📦 Recebido pelo trocas: <strong>'+qtd+' pç</strong></div>'
+      +'<div class="campos-grid">'
+      +'<div class="campo-box ok-box"><label>✅ OK / Estoque</label><input type="number" min="0" value="'+okVal+'" id="ok_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+      +'<div class="campo-box warn-box"><label>🔧 Conserto</label><input type="number" min="0" value="'+(p.conserto||0)+'" id="con_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+      +'<div class="campo-box warn-box"><label>🧺 Lavagem</label><input type="number" min="0" value="'+(p.lavagem||0)+'" id="lav_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+      +'<div class="campo-box bad-box"><label>🗑️ Bazar/Perda</label><input type="number" min="0" value="'+(p.bazar||0)+'" id="baz_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+      +'<div class="campo-box info-box"><label>❓ Falta</label><input type="number" min="0" value="'+(p.falta||0)+'" id="fat_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+      +'</div>'
+      +'<div style="margin-top:8px;"><input type="text" placeholder="Observação..." id="obs_'+i+'" value="'+(p.obs||'')+'" style="width:100%;padding:7px 10px;border:1px solid var(--brd);border-radius:7px;font-size:12px;font-family:inherit;outline:none;"></div>'
+      +'</div>';
+  });
+
+  html += '<div class="divider"></div>'
+    +'<div class="section-title">Peças extras adicionadas</div>'
+    +'<div id="extrasLista"></div>'
+    +'<button class="btn btn-secondary" style="margin-bottom:14px;" onclick="abrirModalExtra()">➕ Adicionar peça extra</button>'
+    +'<button class="btn btn-success" onclick="finalizarConferencia()">✅ Finalizar conferência</button>';
+
+  confEl.innerHTML = html;
+}
+
+function calcOk(i, qtdOrig){
+  var con = parseInt(document.getElementById('con_'+i).value)||0;
+  var lav = parseInt(document.getElementById('lav_'+i).value)||0;
+  var baz = parseInt(document.getElementById('baz_'+i).value)||0;
+  var fat = parseInt(document.getElementById('fat_'+i).value)||0;
+  var ok = qtdOrig - con - lav - baz - fat;
+  document.getElementById('ok_'+i).value = ok>=0?ok:0;
+}
+
+function voltarAcabamento(){
+  document.getElementById('acabamento-conferencia').style.display='none';
+  document.getElementById('acabamento-lotes').style.display='block';
+  loteAtual=null;
+}
+
+function abrirModalExtra(){
+  ['exSku','exModelo','exTipo','exCor','exTam','exQtd','exOk','exConserto','exLavagem','exBazar','exFalta']
+    .forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('modalExtra').classList.add('show');
+}
+function fecharModal(){document.getElementById('modalExtra').classList.remove('show');}
+
+function calcExOk(){
+  var qtd = parseInt(document.getElementById('exQtd').value)||0;
+  var con = parseInt(document.getElementById('exConserto').value)||0;
+  var lav = parseInt(document.getElementById('exLavagem').value)||0;
+  var baz = parseInt(document.getElementById('exBazar').value)||0;
+  var fat = parseInt(document.getElementById('exFalta').value)||0;
+  var ok = qtd-con-lav-baz-fat;
+  document.getElementById('exOk').value = ok>=0?ok:0;
+}
+
+function confirmarExtra(){
+  var p = {
+    sku:document.getElementById('exSku').value.trim().toUpperCase(),
+    modelo:document.getElementById('exModelo').value.trim().toUpperCase(),
+    tipo:document.getElementById('exTipo').value.trim(),
+    cor:document.getElementById('exCor').value.trim().toUpperCase(),
+    tam:document.getElementById('exTam').value.trim().toUpperCase(),
+    qtd:parseInt(document.getElementById('exQtd').value)||0,
+    ok:parseInt(document.getElementById('exOk').value)||0,
+    conserto:parseInt(document.getElementById('exConserto').value)||0,
+    lavagem:parseInt(document.getElementById('exLavagem').value)||0,
+    bazar:parseInt(document.getElementById('exBazar').value)||0,
+    falta:parseInt(document.getElementById('exFalta').value)||0
+  };
+  if(!p.modelo||!p.qtd){toast('Preencha pelo menos Modelo e Quantidade.');return;}
+  extrasConferencia.push(p);
+  var el=document.getElementById('extrasLista');
+  el.innerHTML+='<div class="peca-preview"><span class="desc">'+p.modelo+' — '+p.tipo+' | '+p.cor+' | '+p.tam+'</span><span class="qtd">'+p.qtd+' pç ⭐</span></div>';
+  fecharModal();
+  toast('Peça extra adicionada!');
+}
+
+function finalizarConferencia(){
+  if(!loteAtual){toast('Nenhum lote aberto.');return;}
+  var pecas = pecasConferencia.map(function(p,i){
+    return{
+      linha:p.linha,
+      ok:parseInt(document.getElementById('ok_'+i).value)||0,
+      conserto:parseInt(document.getElementById('con_'+i).value)||0,
+      lavagem:parseInt(document.getElementById('lav_'+i).value)||0,
+      bazar:parseInt(document.getElementById('baz_'+i).value)||0,
+      falta:parseInt(document.getElementById('fat_'+i).value)||0,
+      obs:document.getElementById('obs_'+i).value||''
+    };
+  });
+  toast('Finalizando conferência...');
+  fetch(SCRIPT_URL,{
+    method:'POST',
+    body:JSON.stringify({acao:'finalizarAcabamento',id:loteAtual.id,pecas:pecas,extras:extrasConferencia})
+  }).then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      toast('✅ Conferência finalizada! Lote aguardando transferência.');
+      voltarAcabamento();
+      carregarLotes();
+    }else{toast('Erro: '+(d.erro||'desconhecido'));}
+  }).catch(function(){toast('Erro de conexão.');});
+}
+
+// ── ABA WANDERSON ──────────────────────────────────────────────────────────
+function renderWandersonLotes(){
+  var el = document.getElementById('wanderson-lotes');
+  var disponiveis = lotesCache.filter(function(l){
+    return l.status==='AGUARDANDO TRANSFERÊNCIA'||l.status==='FINALIZADO';
+  });
+  if(!disponiveis.length){
+    el.innerHTML='<div class="empty"><div class="icon">🔄</div><p>Nenhum lote aguardando transferência</p></div>';return;
+  }
+  el.innerHTML = '<div class="section-title">Lotes para transferência</div>'
+    +disponiveis.map(function(l){
+      var aguardando = l.status==='AGUARDANDO TRANSFERÊNCIA';
+      return '<div class="lote-card">'
+        +'<div class="lote-header"><div><div class="lote-nome">'+l.nome+'</div>'
+        +'<div class="lote-id">'+l.id+' · '+l.data+'</div></div>'
+        +statusPill(l.status)+'</div>'
+        +'<div class="lote-info"><span>📋 '+l.totalPecas+' SKUs</span>'
+        +(l.acabamento?'<span>✅ Conferido: '+l.acabamento+'</span>':'')+'</div>'
+        +(aguardando?'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
+          +'<button class="btn btn-primary btn-sm" onclick="gerarArquivos(\''+l.id+'\')">📥 Gerar arquivos</button>'
+          +'<button class="btn btn-success btn-sm" onclick="finalizarLote(\''+l.id+'\')">🏁 Finalizar lote</button>'
+          +'</div>':'')
+        +'</div>';
+    }).join('');
+}
+
+function gerarArquivos(id){
+  toast('Carregando peças...');
+  fetch(SCRIPT_URL+'?acao=pecasLote&id='+id+'&t='+Date.now())
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var pecas = d.pecas||[];
+    if(!pecas.length){toast('Nenhuma peça encontrada.');return;}
+    var status = ['ok','conserto','lavagem','bazar','falta'];
+    var nomes  = ['OK','CONSERTO','LAVAGEM','BAZAR_PERDA','FALTA'];
+    var gerados = 0;
+    status.forEach(function(s,i){
+      var linhas = [];
+      pecas.forEach(function(p){
+        var qtd = parseInt(p[s])||0;
+        if(qtd>0) linhas.push([p.sku||p.modelo+'-'+p.cor+'-'+p.tam, qtd]);
+      });
+      if(!linhas.length) return;
+      var wb = XLSX.utils.book_new();
+      var ws = XLSX.utils.aoa_to_sheet([['SKU','QUANTIDADE']].concat(linhas));
+      ws['!cols']=[{wch:20},{wch:12}];
+      XLSX.utils.book_append_sheet(wb, ws, nomes[i]);
+      XLSX.writeFile(wb, id+'_'+nomes[i]+'.xlsx');
+      gerados++;
+    });
+    toast('✅ '+gerados+' arquivo(s) gerado(s)!');
+  }).catch(function(){toast('Erro ao gerar arquivos.');});
+}
+
+function finalizarLote(id){
+  if(!confirm('Confirmar finalização do lote '+id+'?')) return;
+  fetch(SCRIPT_URL,{
+    method:'POST',
+    body:JSON.stringify({acao:'finalizarTransferencia',id:id})
+  }).then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){toast('🏁 Lote finalizado e transferido!');carregarLotes();}
+    else{toast('Erro: '+(d.erro||'desconhecido'));}
+  }).catch(function(){toast('Erro de conexão.');});
+}
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show';
+  setTimeout(function(){t.className='toast';},2800);
+}
+</script>
+</body>
+</html>

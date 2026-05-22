@@ -100,6 +100,14 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt-s);}
 
 /* TOAST */
+.loading-overlay{position:fixed;inset:0;background:rgba(42,22,85,.7);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+.loading-overlay.show{display:flex;}
+.loading-box{background:#fff;border-radius:16px;padding:28px 32px;text-align:center;min-width:240px;box-shadow:0 12px 40px rgba(89,44,149,.3);}
+.loading-title{font-size:15px;font-weight:800;color:var(--txt);margin-bottom:8px;}
+.loading-sub{font-size:12px;color:var(--txt-s);margin-bottom:16px;}
+.progress-bar-wrap{background:var(--lav-l);border-radius:20px;height:10px;overflow:hidden;margin-bottom:8px;}
+.progress-bar-fill{height:10px;border-radius:20px;background:linear-gradient(90deg,var(--roxo),var(--roxo-cl));transition:width .3s ease;}
+.progress-pct{font-size:20px;font-weight:800;color:var(--roxo);}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--roxo);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;font-size:13px;box-shadow:0 8px 24px rgba(89,44,149,.3);opacity:0;transition:all .25s;pointer-events:none;z-index:400;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -109,6 +117,29 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 .empty p{font-size:14px;}
 
 .divider{height:1px;background:var(--lav);margin:14px 0;}
+/* LINHA COMPACTA CONFERÊNCIA */
+.peca-linha{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-radius:10px;border:1px solid var(--brd);margin-bottom:8px;flex-wrap:wrap;}
+.peca-linha.salvo{border-left:4px solid var(--ok);background:#e8fdf2;}
+.pl-desc{flex:1;min-width:140px;}
+.pl-nome{font-size:13px;font-weight:700;color:var(--txt);line-height:1.2;}
+.pl-sku{font-size:10px;color:var(--txt-s);font-family:monospace;}
+.pl-orig{font-size:11px;font-weight:700;color:var(--roxo);background:var(--lav-l);padding:2px 8px;border-radius:6px;white-space:nowrap;}
+.pl-campos{display:flex;gap:6px;flex-wrap:wrap;}
+.pl-campo{display:flex;flex-direction:column;align-items:center;min-width:52px;}
+.pl-campo label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;white-space:nowrap;}
+.pl-campo input{width:52px;text-align:center;padding:6px 4px;border-radius:7px;border:1.5px solid var(--brd);font-size:14px;font-weight:700;font-family:inherit;outline:none;}
+.pl-campo.c-ok label{color:var(--ok);}
+.pl-campo.c-ok input{background:var(--ok-bg);border-color:#86efac;color:var(--ok);}
+.pl-campo.c-con label{color:var(--warn);}
+.pl-campo.c-con input{background:var(--warn-bg);border-color:#fcd34d;color:var(--warn);}
+.pl-campo.c-lav label{color:#0369a1;}
+.pl-campo.c-lav input{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;}
+.pl-campo.c-baz label{color:var(--bad);}
+.pl-campo.c-baz input{background:var(--bad-bg);border-color:#fca5a5;color:var(--bad);}
+.pl-campo.c-fat label{color:#6d28d9;}
+.pl-campo.c-fat input{background:#ede9fe;border-color:#c4b5fd;color:#6d28d9;}
+.pl-obs{width:100%;margin-top:4px;}
+.pl-obs input{width:100%;padding:6px 10px;border:1px solid var(--brd);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt-s);}
 .section-title{font-size:11px;font-weight:700;color:var(--txt-s);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
 
 /* LOADING */
@@ -121,7 +152,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 
 <div class="topbar">
   <h1><span class="brand">PANGEIA 96</span> Trocas e Devoluções</h1>
-  <button onclick="carregarLotes()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">↺ Atualizar</button>
+  <button onclick="carregarLotes(true)" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">↺ Atualizar</button>
 </div>
 
 <div class="menu">
@@ -166,12 +197,11 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 
     <div id="previewArea" style="display:none">
       <div class="divider"></div>
+      <button class="btn btn-primary" id="btnCriarLote" onclick="criarLote()">📤 Criar lote e enviar para conferência</button>
+      <div style="margin-top:10px;background:var(--lav-l);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--roxo)" id="previewTotal"></div>
+      <div class="divider"></div>
       <div class="section-title">📋 Peças identificadas</div>
       <div id="previewLista"></div>
-      <div style="margin-top:12px;background:var(--lav-l);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--roxo)" id="previewTotal"></div>
-      <div style="margin-top:12px;">
-        <button class="btn btn-primary" onclick="criarLote()">📤 Criar lote e enviar para conferência</button>
-      </div>
     </div>
   </div>
 
@@ -220,6 +250,14 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
   </div>
 </div>
 
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="loading-title">Enviando lote...</div>
+    <div class="loading-sub" id="loadingSub">Preparando peças</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+    <div class="progress-pct" id="progressPct">0%</div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -234,6 +272,12 @@ function chamarScript(params, callback) {
     .then(callback)
     .catch(function(){ callback({erro:'Erro de conexão'}); });
 }
+
+
+var LOTES_CACHE_KEY='pangeia_trocas_v1';
+var LOTES_TTL=5*60*1000;
+function salvarLC(l){try{sessionStorage.setItem(LOTES_CACHE_KEY,JSON.stringify({ts:Date.now(),l:l}));}catch(e){}}
+function lerLC(){try{var r=sessionStorage.getItem(LOTES_CACHE_KEY);if(!r)return null;var o=JSON.parse(r);return(Date.now()-o.ts>LOTES_TTL)?null:o.l;}catch(e){return null;}}
 
 var pecasImportadas = [];
 var lotesCache = [];
@@ -370,41 +414,60 @@ function criarLote(){
 
   var dataBR = data.split('-').reverse().join('/');
   toast('Criando lote...');
-  // Dividir em chunks de 30 peças para não estourar a URL
-  var CHUNK = 30;
-  var chunks = [];
-  for(var i=0;i<pecasImportadas.length;i+=CHUNK) chunks.push(pecasImportadas.slice(i,i+CHUNK));
-  var loteId = null;
-  toast('Criando lote ('+chunks.length+' partes)...');
+  var CHUNK=30, chunks=[], loteId=null;
+  for(var ci=0;ci<pecasImportadas.length;ci+=CHUNK) chunks.push(pecasImportadas.slice(ci,ci+CHUNK));
+  // Mostrar loading
+  var overlay=document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+  function atualizarProgress(idx){
+    var pct=Math.round((idx/chunks.length)*100);
+    document.getElementById('progressBar').style.width=pct+'%';
+    document.getElementById('progressPct').textContent=pct+'%';
+    document.getElementById('loadingSub').textContent='Enviando parte '+(idx+1)+' de '+chunks.length+' ('+pecasImportadas.length+' peças)';
+  }
   function enviarChunk(idx){
+    atualizarProgress(idx);
     if(idx>=chunks.length){
-      toast('✅ Lote criado com '+pecasImportadas.length+' peças!');
-      document.getElementById('tNome').value='';
-      pecasImportadas=[];
-      document.getElementById('previewArea').style.display='none';
-      document.getElementById('uploadZone').style.borderColor='';
-      document.getElementById('uploadZone').style.background='';
-      document.getElementById('fileInput').value='';
-      carregarLotes(); return;
+      document.getElementById('progressBar').style.width='100%';
+      document.getElementById('progressPct').textContent='100%';
+      document.getElementById('loadingSub').textContent='Lote criado com sucesso!';
+      setTimeout(function(){
+        overlay.classList.remove('show');
+        toast('✅ Lote criado com '+pecasImportadas.length+' peças!');
+        document.getElementById('tNome').value='';
+        pecasImportadas=[];
+        document.getElementById('previewArea').style.display='none';
+        document.getElementById('uploadZone').style.borderColor='';
+        document.getElementById('uploadZone').style.background='';
+        document.getElementById('fileInput').value='';
+        carregarLotes();
+      },800);
+      return;
     }
     var isFirst=idx===0;
     var dados={nome:isFirst?nome:'',data:isFirst?dataBR:'',id:loteId||'',primeiroChunk:isFirst,pecas:chunks[idx]};
     chamarScript({acao:'criarLoteChunk',dados:JSON.stringify(dados),t:Date.now()}, function(d){
-      if(d.ok){ if(d.id) loteId=d.id; toast('Enviando... '+(idx+1)+'/'+chunks.length); enviarChunk(idx+1); }
-      else{ toast('Erro: '+(d.erro||'desconhecido')); }
+      if(d.ok){ if(d.id)loteId=d.id; enviarChunk(idx+1); }
+      else{ overlay.classList.remove('show'); toast('Erro: '+(d.erro||'desconhecido')); }
     });
   }
   enviarChunk(0);
 }
 
 // ── CARREGAR LOTES ─────────────────────────────────────────────────────────
-function carregarLotes(){
-  chamarScript({acao:'listarLotes',t:Date.now()}, function(d){
+function carregarLotes(forcar){
+  var cache=lerLC();
+  if(cache&&!forcar){
+    lotesCache=cache;
+    renderLotesTrocas();renderAcabamentoLotes();renderWandersonLotes();
+    return;
+  }
+  toast('Carregando...');
+  chamarScript({acao:'listarLotes',t:Date.now()},function(d){
     if(d.erro){toast('Erro: '+d.erro);return;}
-    lotesCache = d.lotes||[];
-    renderLotesTrocas();
-    renderAcabamentoLotes();
-    renderWandersonLotes();
+    lotesCache=d.lotes||[];
+    salvarLC(lotesCache);
+    renderLotesTrocas();renderAcabamentoLotes();renderWandersonLotes();
   });
 }
 
@@ -429,7 +492,7 @@ function renderLotesTrocas(){
       +'<div class="lote-id">'+l.id+'</div></div>'
       +statusPill(l.status)+'</div>'
       +'<div class="lote-info">'
-      +'<span>📅 '+l.data+'</span>'
+      +'<span>📅 '+(l.data?String(l.data).split('T')[0].split('-').reverse().join('/'):'-')+'</span>'
       +'<span>📋 '+l.totalPecas+' SKUs</span>'
       +(l.acabamento?'<span>✅ Conferido: '+l.acabamento+'</span>':'')
       +(l.transferencia?'<span>🔄 Transferido: '+l.transferencia+'</span>':'')
@@ -476,46 +539,91 @@ function abrirConferencia(id){
 }
 
 function renderConferencia(){
-  var confEl = document.getElementById('acabamento-conferencia');
-  var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
-    +'<button onclick="voltarAcabamento()" style="background:none;border:none;font-size:20px;cursor:pointer;">←</button>'
-    +'<div><div style="font-size:16px;font-weight:800;color:var(--txt)">'+loteAtual.nome+'</div>'
-    +'<div style="font-size:11px;color:var(--txt-s)">'+loteAtual.id+' · '+pecasConferencia.length+' SKUs</div></div></div>';
+  var confEl=document.getElementById('acabamento-conferencia');
+  var html='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+    +'<button onclick="voltarAcabamento()" style="background:none;border:none;font-size:22px;cursor:pointer;">&#8592;</button>'
+    +'<div><div style="font-size:15px;font-weight:800;color:var(--txt)">'+loteAtual.nome+'</div>'
+    +'<div style="font-size:11px;color:var(--txt-s)">'+pecasConferencia.length+' SKUs</div></div>'
+    +'</div>'
+    +'<div class="conf-fab">'
+    +'<button class="fab-btn fab-save" onclick="salvarParcial()">&#128190; Salvar parcial</button>'
+    +'<button class="fab-btn fab-finish" onclick="finalizarConferencia()">&#9989; Finalizar</button>'
+    +'</div>'
+    +'<div style="background:var(--lav-l);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--txt-s);margin-bottom:10px;">'
+    +'&#128161; OK calculado automaticamente. Preencha so os defeitos.'
+    +'</div>'
+    +'<input type="search" id="confBusca" placeholder="&#128269; Buscar peca..." oninput="filtrarConferencia()" style="width:100%;padding:10px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;font-family:inherit;outline:none;color:var(--txt);margin-bottom:10px;display:block;">'
+    +'<div style="display:flex;gap:4px;padding:4px 12px;font-size:9px;font-weight:700;color:var(--txt-s);text-transform:uppercase;margin-bottom:4px;">'
+    +'<div style="flex:1;min-width:100px;">Peca</div>'
+    +'<div style="width:32px;text-align:center;">Qtd</div>'
+    +'<div style="width:70px;text-align:center;color:var(--ok)">OK</div>'
+    +'<div style="width:70px;text-align:center;color:var(--warn)">Cons.</div>'
+    +'<div style="width:70px;text-align:center;color:#0369a1">Lav.</div>'
+    +'<div style="width:70px;text-align:center;color:var(--bad)">Baz.</div>'
+    +'<div style="width:70px;text-align:center;color:#6d28d9">Falta</div>'
+    +'</div>';
 
-  pecasConferencia.forEach(function(p, i){
-    var qtd = Number(p.qtdOriginal)||0;
-    var okVal = p.ok!==''?p.ok:qtd;
-    html += '<div class="peca-item" id="peca-'+i+'">'
-      +'<div class="peca-desc">'+(p.modelo||'—')+' — '+(p.tipo||'—')+' | '+(p.cor||'—')+' | '+(p.tam||'—')+'</div>'
-      +(p.sku?'<div class="peca-sku">'+p.sku+'</div>':'')
-      +'<div class="peca-qtd-orig">📦 Recebido pelo trocas: <strong>'+qtd+' pç</strong></div>'
-      +'<div class="campos-grid">'
-      +'<div class="campo-box ok-box"><label>✅ OK / Estoque</label><input type="number" min="0" value="'+okVal+'" id="ok_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
-      +'<div class="campo-box warn-box"><label>🔧 Conserto</label><input type="number" min="0" value="'+(p.conserto||0)+'" id="con_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
-      +'<div class="campo-box warn-box"><label>🧺 Lavagem</label><input type="number" min="0" value="'+(p.lavagem||0)+'" id="lav_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
-      +'<div class="campo-box bad-box"><label>🗑️ Bazar/Perda</label><input type="number" min="0" value="'+(p.bazar||0)+'" id="baz_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
-      +'<div class="campo-box info-box"><label>❓ Falta</label><input type="number" min="0" value="'+(p.falta||0)+'" id="fat_'+i+'" oninput="calcOk('+i+','+qtd+')"></div>'
+  pecasConferencia.forEach(function(p,i){
+    var qtd=Number(p.qtdOriginal)||0;
+    var okVal=(p.ok!==''&&p.ok!==null&&p.ok!==undefined&&Number(p.ok)>0)?Number(p.ok):0;
+    var temDados=(Number(p.conserto)||Number(p.lavagem)||Number(p.bazar)||Number(p.falta)||(p.ok!==''&&p.ok!==null&&p.ok!==undefined&&Number(p.ok)>0));
+
+    function nc(campo, val) {
+      return '<div class="num-ctrl">'
+        +'<button type="button" onclick="incr(\''+campo+'_'+i+'\')">+</button>'
+        +'<input type="number" min="0" id="'+campo+'_'+i+'" value="'+val+'" oninput="calcOk('+i+')">'
+        +'<button type="button" onclick="decr(\''+campo+'_'+i+'\')">&#8722;</button>'
+        +'</div>';
+    }
+
+    html+='<div class="peca-linha'+(temDados?' salvo':'')+'" id="peca-'+i+'" data-nome="'+normAcento((p.modelo||'')+' '+(p.tipo||'')+' '+(p.cor||'')+' '+(p.tam||'')+' '+(p.sku||''))+'">'
+      +'<div style="width:22px;text-align:center;font-size:11px;font-weight:700;color:var(--txt-s);padding-top:2px;">'+(i+1)+'</div>'
+        +'<div style="flex:1;min-width:100px;">'
+        +'<div class="pl-nome">'+p.modelo+' &#8212; '+p.tipo+'</div>'
+        +'<div class="pl-sku">'+(p.sku||'')+' '+p.cor+' '+p.tam+'</div>'
       +'</div>'
-      +'<div style="margin-top:8px;"><input type="text" placeholder="Observação..." id="obs_'+i+'" value="'+(p.obs||'')+'" style="width:100%;padding:7px 10px;border:1px solid var(--brd);border-radius:7px;font-size:12px;font-family:inherit;outline:none;"></div>'
+      +'<div style="width:32px;text-align:center;font-size:12px;font-weight:700;color:var(--roxo)">'+qtd+'</div>'
+      +'<div style="display:flex;gap:4px;">'
+        +'<div class="pl-campo c-ok">'+nc('ok',okVal)+'</div>'
+        +'<div class="pl-campo c-con">'+nc('con',(p.conserto||0))+'</div>'
+        +'<div class="pl-campo c-lav">'+nc('lav',(p.lavagem||0))+'</div>'
+        +'<div class="pl-campo c-baz">'+nc('baz',(p.bazar||0))+'</div>'
+        +'<div class="pl-campo c-fat">'+nc('fat',(p.falta||0))+'</div>'
+      +'</div>'
+      +'<div class="pl-obs"><input type="text" placeholder="Obs..." id="obs_'+i+'" value="'+(p.obs||'')+'"></div>'
       +'</div>';
   });
 
-  html += '<div class="divider"></div>'
-    +'<div class="section-title">Peças extras adicionadas</div>'
+  html+='<div class="divider"></div>'
+    +'<div class="section-title">Pecas extras</div>'
     +'<div id="extrasLista"></div>'
-    +'<button class="btn btn-secondary" style="margin-bottom:14px;" onclick="abrirModalExtra()">➕ Adicionar peça extra</button>'
-    +'<button class="btn btn-success" onclick="finalizarConferencia()">✅ Finalizar conferência</button>';
-
-  confEl.innerHTML = html;
+    +'<button class="btn btn-secondary" style="margin-bottom:60px;" onclick="abrirModalExtra()">&#10133; Adicionar peca extra</button>';
+  confEl.innerHTML=html;
 }
 
-function calcOk(i, qtdOrig){
-  var con = parseInt(document.getElementById('con_'+i).value)||0;
-  var lav = parseInt(document.getElementById('lav_'+i).value)||0;
-  var baz = parseInt(document.getElementById('baz_'+i).value)||0;
-  var fat = parseInt(document.getElementById('fat_'+i).value)||0;
-  var ok = qtdOrig - con - lav - baz - fat;
-  document.getElementById('ok_'+i).value = ok>=0?ok:0;
+function normAcento(s){
+  return s.toUpperCase()
+    .replace(/[ÁÀÃÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E')
+    .replace(/[ÍÌÎÏ]/g,'I').replace(/[ÓÒÕÔÖ]/g,'O')
+    .replace(/[ÚÙÛÜ]/g,'U').replace(/[Ç]/g,'C');
+}
+function filtrarConferencia(){
+  var busca=normAcento((document.getElementById('confBusca').value||'').trim());
+  document.querySelectorAll('[data-nome]').forEach(function(el){
+    if(!busca){el.style.display='';return;}
+    el.style.display=normAcento(el.dataset.nome||'').indexOf(busca)>=0?'':'none';
+  });
+}
+function incr(id){var el=document.getElementById(id);if(!el)return;el.value=(parseInt(el.value)||0)+1;el.dispatchEvent(new Event('input'));}
+function decr(id){var el=document.getElementById(id);if(!el)return;var v=(parseInt(el.value)||0)-1;el.value=v<0?0:v;el.dispatchEvent(new Event('input'));}
+function calcOk(i){
+  var con=parseInt(document.getElementById('con_'+i).value)||0;
+  var lav=parseInt(document.getElementById('lav_'+i).value)||0;
+  var baz=parseInt(document.getElementById('baz_'+i).value)||0;
+  var fat=parseInt(document.getElementById('fat_'+i).value)||0;
+  var ok=parseInt(document.getElementById('ok_'+i).value)||0;
+  var card=document.getElementById('peca-'+i);
+  if(card) card.classList.toggle('salvo',(con||lav||baz||fat||ok)>0);
 }
 
 function voltarAcabamento(){
@@ -563,9 +671,9 @@ function confirmarExtra(){
   toast('Peça extra adicionada!');
 }
 
-function finalizarConferencia(){
-  if(!loteAtual){toast('Nenhum lote aberto.');return;}
-  var pecas = pecasConferencia.map(function(p,i){
+
+function coletarPecas(){
+  return pecasConferencia.map(function(p,i){
     return{
       linha:p.linha,
       ok:parseInt(document.getElementById('ok_'+i).value)||0,
@@ -573,17 +681,53 @@ function finalizarConferencia(){
       lavagem:parseInt(document.getElementById('lav_'+i).value)||0,
       bazar:parseInt(document.getElementById('baz_'+i).value)||0,
       falta:parseInt(document.getElementById('fat_'+i).value)||0,
-      obs:document.getElementById('obs_'+i).value||''
+      obs:(document.getElementById('obs_'+i)||{}).value||''
     };
   });
-  toast('Finalizando conferência...');
-  var d2={id:loteAtual.id,pecas:pecas,extras:extrasConferencia};
-  chamarScript({acao:'finalizarAcabamento',dados:JSON.stringify(d2),t:Date.now()}, function(d){
-    if(d.ok){
-      toast('✅ Conferência finalizada! Lote aguardando transferência.');
-      voltarAcabamento();
-      carregarLotes();
-    }else{toast('Erro: '+(d.erro||'desconhecido'));}
+}
+
+function enviarEmChunks(pecas, aoTerminar){
+  var CHUNK=30, chunks=[], concluidos=0, erros=0;
+  for(var ci=0;ci<pecas.length;ci+=CHUNK) chunks.push(pecas.slice(ci,ci+CHUNK));
+  if(!chunks.length){aoTerminar();return;}
+  toast('Salvando '+chunks.length+' parte(s)...');
+  // Enviar todos os chunks em paralelo
+  chunks.forEach(function(chunk, i){
+    chamarScript({acao:'salvarConferencia',dados:JSON.stringify({pecas:chunk}),t:Date.now()+i},function(d){
+      if(d.ok){ concluidos++; }
+      else{ erros++; toast('Erro na parte '+(i+1)+': '+(d.erro||'')); }
+      if(concluidos+erros===chunks.length){
+        if(erros===0) aoTerminar();
+        else toast(erros+' parte(s) com erro — tente novamente.');
+      }
+    });
+  });
+}
+
+function salvarParcial(){
+  if(!loteAtual){toast('Nenhum lote aberto.');return;}
+  var pecas=coletarPecas();
+  enviarEmChunks(pecas, function(){
+    toast('✅ Progresso salvo! Pode sair e retomar depois.');
+  });
+}
+
+function finalizarConferencia(){
+  if(!loteAtual){toast('Nenhum lote aberto.');return;}
+  toast('Salvando conferência...');
+  var pecas = coletarPecas();
+  // 1. Salvar peças em chunks
+  enviarEmChunks(pecas, function(){
+    // 2. Finalizar extras + mudar status
+    var extras = extrasConferencia;
+    chamarScript({acao:'finalizarAcabamento',dados:JSON.stringify({id:loteAtual.id,extras:extras}),t:Date.now()},function(d){
+      if(d.ok){
+        toast('✅ Conferência finalizada!');
+        salvarLC([]);
+        voltarAcabamento();
+        carregarLotes(true);
+      }else{toast('Erro ao finalizar: '+(d.erro||'desconhecido'));}
+    });
   });
 }
 

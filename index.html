@@ -273,7 +273,6 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
     <div class="resumo-kpis" id="resumoKpis"></div>
     <div class="resumo-diverg" id="resumoDivergTitulo" style="display:none">⚠️ Divergências encontradas</div>
     <div id="resumoDiverg"></div>
-    <button class="resumo-fechar" id="resumoBtnExport" onclick="exportarResumo()" style="background:var(--roxo);color:#fff;margin-bottom:8px;">📥 Exportar Excel</button>
     <button class="resumo-fechar" onclick="fecharResumo()">Fechar</button>
   </div>
 </div>
@@ -885,7 +884,8 @@ function abrirResumoLote(id){
   chamarScript({acao:'pecasLote',id:id,t:Date.now()},function(d){
     var pecas=d.pecas||[];
     if(!pecas.length){
-      document.getElementById('resumoKpis').innerHTML='<div style="color:var(--txt-s)">Nenhuma peça encontrada.</div>';
+      document.getElementById('resumoBtnExport').style.display='block';
+    document.getElementById('resumoKpis').innerHTML='<div style="color:var(--txt-s)">Nenhuma peça encontrada.</div>';
       return;
     }
     var totOk=0,totCon=0,totLav=0,totBaz=0,totFal=0,totOrig=0;
@@ -897,6 +897,7 @@ function abrirResumoLote(id){
       totBaz+=Number(p.bazar)||0;
       totFal+=Number(p.falta)||0;
     });
+    document.getElementById('resumoBtnExport').style.display='block';
     document.getElementById('resumoKpis').innerHTML=
       '<div class="resumo-kpi" style="background:var(--ok-bg)"><div class="val" style="color:var(--ok)">'+totOk+'</div><div class="lbl" style="color:var(--ok)">OK</div></div>'
       +'<div class="resumo-kpi" style="background:var(--warn-bg)"><div class="val" style="color:var(--warn)">'+totCon+'</div><div class="lbl" style="color:var(--warn)">Conserto</div></div>'

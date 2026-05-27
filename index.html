@@ -528,7 +528,7 @@ function renderLotesTrocas(){
       +'<span>📋 '+l.totalPecas+' SKUs</span>'
       +(l.acabamento?'<span>✅ Conferido: '+l.acabamento+'</span>':'')
       +(l.transferencia?'<span>🔄 Transferido: '+l.transferencia+'</span>':'')
-      +(clicavel?'<span style="color:var(--roxo);font-weight:700;">👁 Ver resumo do acabamento</span>':'')
+      +(clicavel?'<span data-lid="'+l.id+'" style="color:var(--roxo);font-weight:700;cursor:pointer" onclick="event.stopPropagation();abrirResumoLote(this.dataset.lid)">👁 Ver resumo</span>&nbsp;&nbsp;<span data-lid="'+l.id+'" style="color:var(--roxo);font-weight:700;cursor:pointer" onclick="event.stopPropagation();exportarResumoLote(this.dataset.lid)">📥 Baixar Excel</span>':'')
       +'</div></div>';
   }).join('');
 }
@@ -843,6 +843,16 @@ function baixarModelo(){
 }
 
 
+
+function exportarResumoLote(id){
+  var lote=lotesCache.find(function(l){return l.id===id;});
+  var nome=lote?lote.nome:id;
+  toast('Buscando peças...');
+  getPecasLote(id, function(pecas){
+    if(!pecas||!pecas.length){toast('Nenhuma peça encontrada.');return;}
+    gerarExcelPecas(pecas, nome);
+  });
+}
 
 function exportarResumo(){
   var id = document.getElementById('resumoBox').dataset.loteId;

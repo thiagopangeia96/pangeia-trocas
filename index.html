@@ -528,7 +528,7 @@ function renderLotesTrocas(){
       +'<span>📋 '+l.totalPecas+' SKUs</span>'
       +(l.acabamento?'<span>✅ Conferido: '+l.acabamento+'</span>':'')
       +(l.transferencia?'<span>🔄 Transferido: '+l.transferencia+'</span>':'')
-      +(clicavel?'<span data-lid="'+l.id+'" style="color:var(--roxo);font-weight:700;cursor:pointer" onclick="event.stopPropagation();abrirResumoLote(this.dataset.lid)">👁 Ver resumo</span>&nbsp;&nbsp;<span data-lid="'+l.id+'" style="color:var(--roxo);font-weight:700;cursor:pointer" onclick="event.stopPropagation();exportarResumoLote(this.dataset.lid)">📥 Baixar Excel</span>':'')
+      +(clicavel?'<span data-lid="'+l.id+'" style="color:var(--roxo);font-weight:700;cursor:pointer" onclick="event.stopPropagation();abrirResumoLote(this.dataset.lid)">👁 Ver resumo</span>&nbsp;&nbsp;<button onclick="event.stopPropagation();document.getElementById(\'resumoBox\').dataset.loteId=\''+l.id+'\';exportarResumo()" title="Baixar Excel" style="background:var(--roxo);border:none;border-radius:10px;padding:6px 10px;cursor:pointer;color:#fff;font-size:15px;">📥</button>':'')
       +'</div></div>';
   }).join('');
 }

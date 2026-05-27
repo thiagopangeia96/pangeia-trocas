@@ -268,8 +268,13 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--lav-l);col
 
 <div class="resumo-overlay" id="resumoOverlay" onclick="fecharResumo(event)">
   <div class="resumo-box" id="resumoBox">
-    <div class="resumo-titulo" id="resumoTitulo">—</div>
-    <div class="resumo-sub" id="resumoSub">—</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+      <div>
+        <div class="resumo-titulo" id="resumoTitulo">—</div>
+        <div class="resumo-sub" id="resumoSub">—</div>
+      </div>
+      <button onclick="exportarResumo()" title="Baixar Excel" style="background:var(--roxo);border:none;border-radius:10px;padding:8px 12px;cursor:pointer;color:#fff;font-size:18px;flex-shrink:0;margin-left:8px;">📥</button>
+    </div>
     <div class="resumo-kpis" id="resumoKpis"></div>
     <div class="resumo-diverg" id="resumoDivergTitulo" style="display:none">⚠️ Divergências encontradas</div>
     <div id="resumoDiverg"></div>
@@ -751,6 +756,7 @@ function finalizarConferencia(){
     chamarScript({acao:'finalizarAcabamento',dados:JSON.stringify({id:loteAtual.id,extras:extras}),t:Date.now()},function(d){
       if(d.ok){
         toast('✅ Conferência finalizada!');
+        _pecasCache={};
         salvarLC([]);
         voltarAcabamento();
         carregarLotes(true);
@@ -842,18 +848,21 @@ function exportarResumo(){
   var id = document.getElementById('resumoBox').dataset.loteId;
   var nome = document.getElementById('resumoTitulo').textContent;
   if(!id){toast('Erro: lote não identificado.');return;}
-  chamarScript({acao:'pecasLote',id:id,t:Date.now()},function(d){
-    var pecas=d.pecas||[];
+  toast('Gerando Excel...');
+  getPecasLote(id, function(pecas){
     if(!pecas.length){toast('Nenhuma peça para exportar.');return;}
     var wb=XLSX.utils.book_new();
-    var rows=[['SKU','MODELO','TIPO','COR','TAM','QTD_ORIGINAL','OK','CONSERTO','LAVAGEM','BAZAR','FALTA']];
+    var rows=[['SKU','MODELO','TIPO','COR','TAM','QTD_ORIGINAL','OK','CONSERTO','LAVAGEM','BAZAR','FALTA','DIFERENÇA']];
     pecas.forEach(function(p){
-      rows.push([
-        p.sku||'',p.modelo||'',p.tipo||'',p.cor||'',p.tam||'',
-        Number(p.qtdOriginal)||0,
-        Number(p.ok)||0,Number(p.conserto)||0,Number(p.lavagem)||0,
-        Number(p.bazar)||0,Number(p.falta)||0
-      ]);
+      var orig=Number(p.qtdOriginal)||0;
+      var ok=Number(p.ok)||0;
+      var con=Number(p.conserto)||0;
+      var lav=Number(p.lavagem)||0;
+      var baz=Number(p.bazar)||0;
+      var fat=Number(p.falta)||0;
+      var soma=ok+con+lav+baz+fat;
+      var diff=soma-orig;
+      rows.push([p.sku||'',p.modelo||'',p.tipo||'',p.cor||'',p.tam||'',orig,ok,con,lav,baz,fat,diff]);
     });
     var ws=XLSX.utils.aoa_to_sheet(rows);
     ws['!cols']=[{wch:14},{wch:16},{wch:12},{wch:14},{wch:6},{wch:12},{wch:6},{wch:10},{wch:10},{wch:8},{wch:8}];
@@ -870,6 +879,16 @@ function fecharResumo(e){
   document.getElementById('resumoOverlay').classList.remove('show');
 }
 
+
+var _pecasCache={};
+function getPecasLote(id, cb){
+  if(_pecasCache[id]){cb(_pecasCache[id]);return;}
+  chamarScript({acao:'pecasLote',id:id,t:Date.now()},function(d){
+    if(d.pecas) _pecasCache[id]=d.pecas;
+    cb(d.pecas||[]);
+  });
+}
+
 function abrirResumoLote(id){
   var lote=lotesCache.find(function(l){return l.id===id;});
   if(!lote) return;
@@ -881,11 +900,9 @@ function abrirResumoLote(id){
   document.getElementById('resumoDivergTitulo').style.display='none';
   document.getElementById('resumoOverlay').classList.add('show');
 
-  chamarScript({acao:'pecasLote',id:id,t:Date.now()},function(d){
-    var pecas=d.pecas||[];
+  getPecasLote(id, function(pecas){
     if(!pecas.length){
-      document.getElementById('resumoBtnExport').style.display='block';
-    document.getElementById('resumoKpis').innerHTML='<div style="color:var(--txt-s)">Nenhuma peça encontrada.</div>';
+      document.getElementById('resumoKpis').innerHTML='<div style="color:var(--txt-s)">Nenhuma peça encontrada.</div>';
       return;
     }
     var totOk=0,totCon=0,totLav=0,totBaz=0,totFal=0,totOrig=0;
@@ -897,40 +914,79 @@ function abrirResumoLote(id){
       totBaz+=Number(p.bazar)||0;
       totFal+=Number(p.falta)||0;
     });
+    document.getElementById('resumoBox').dataset.pecas=JSON.stringify(pecas);
     document.getElementById('resumoBtnExport').style.display='block';
     document.getElementById('resumoKpis').innerHTML=
-      '<div class="resumo-kpi" style="background:var(--ok-bg)"><div class="val" style="color:var(--ok)">'+totOk+'</div><div class="lbl" style="color:var(--ok)">OK</div></div>'
-      +'<div class="resumo-kpi" style="background:var(--warn-bg)"><div class="val" style="color:var(--warn)">'+totCon+'</div><div class="lbl" style="color:var(--warn)">Conserto</div></div>'
-      +'<div class="resumo-kpi" style="background:#e0f2fe"><div class="val" style="color:#0369a1">'+totLav+'</div><div class="lbl" style="color:#0369a1">Lavagem</div></div>'
-      +'<div class="resumo-kpi" style="background:var(--bad-bg)"><div class="val" style="color:var(--bad)">'+totBaz+'</div><div class="lbl" style="color:var(--bad)">Bazar</div></div>'
-      +'<div class="resumo-kpi" style="background:#ede9fe"><div class="val" style="color:#6d28d9">'+totFal+'</div><div class="lbl" style="color:#6d28d9">Falta</div></div>'
-      +'<div class="resumo-kpi" style="background:var(--lav-l)"><div class="val" style="color:var(--roxo)">'+totOrig+'</div><div class="lbl" style="color:var(--roxo)">Total</div></div>';
+      '<div class="resumo-kpi" style="background:var(--ok-bg);cursor:pointer" data-campo="ok" onclick="filtrarResumo(this.dataset.campo)"><div class="val" style="color:var(--ok)">'+totOk+'</div><div class="lbl" style="color:var(--ok)">OK</div></div>'
+      +'<div class="resumo-kpi" style="background:var(--warn-bg);cursor:pointer" data-campo="conserto" onclick="filtrarResumo(this.dataset.campo)"><div class="val" style="color:var(--warn)">'+totCon+'</div><div class="lbl" style="color:var(--warn)">Conserto</div></div>'
+      +'<div class="resumo-kpi" style="background:#e0f2fe;cursor:pointer" data-campo="lavagem" onclick="filtrarResumo(this.dataset.campo)"><div class="val" style="color:#0369a1">'+totLav+'</div><div class="lbl" style="color:#0369a1">Lavagem</div></div>'
+      +'<div class="resumo-kpi" style="background:var(--bad-bg);cursor:pointer" data-campo="bazar" onclick="filtrarResumo(this.dataset.campo)"><div class="val" style="color:var(--bad)">'+totBaz+'</div><div class="lbl" style="color:var(--bad)">Bazar</div></div>'
+      +'<div class="resumo-kpi" style="background:#ede9fe;cursor:pointer" data-campo="falta" onclick="filtrarResumo(this.dataset.campo)"><div class="val" style="color:#6d28d9">'+totFal+'</div><div class="lbl" style="color:#6d28d9">Falta</div></div>'
+      +'<div class="resumo-kpi" style="background:var(--lav-l);cursor:pointer" onclick="filtrarResumo(null)"><div class="val" style="color:var(--roxo)">'+totOrig+'</div><div class="lbl" style="color:var(--roxo)">Total</div></div>';
 
-    var divergencias=pecas.filter(function(p){
+    renderDivergencias(pecas);
+  });
+}
+
+
+function filtrarResumo(campo){
+  var pecas=JSON.parse(document.getElementById('resumoBox').dataset.pecas||'[]');
+  var divEl=document.getElementById('resumoDiverg');
+  var divTit=document.getElementById('resumoDivergTitulo');
+
+  if(!campo){
+    // Mostrar divergências normais
+    renderDivergencias(pecas);
+    return;
+  }
+
+  // Filtrar por campo específico
+  var filtradas=pecas.filter(function(p){return Number(p[campo])>0;});
+  divTit.style.display='block';
+  divTit.textContent='🔍 '+campo.toUpperCase()+': '+filtradas.length+' peça(s) — clique em Total para ver tudo';
+  divTit.style.color='var(--roxo)';
+  if(!filtradas.length){
+    divEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px;">Nenhuma peça com '+campo+'</div>';
+    return;
+  }
+  divEl.innerHTML=filtradas.map(function(p){
+    var val=Number(p[campo])||0;
+    var orig=Number(p.qtdOriginal)||0;
+    return '<div class="diverg-item">'
+      +'<div><div class="diverg-nome">'+(p.modelo||'—')+' — '+(p.tipo||'—')+' | '+(p.cor||'—')+' | '+(p.tam||'—')+'</div>'
+      +'<div class="diverg-det">'+campo+': <strong>'+val+'</strong> · Total original: '+orig+'</div></div>'
+      +'<div class="diverg-diff" style="color:var(--roxo)">'+val+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function renderDivergencias(pecas){
+  var divEl=document.getElementById('resumoDiverg');
+  var divTit=document.getElementById('resumoDivergTitulo');
+  var divergencias=pecas.filter(function(p){
+    var orig=Number(p.qtdOriginal)||0;
+    var conf=(Number(p.ok)||0)+(Number(p.conserto)||0)+(Number(p.lavagem)||0)+(Number(p.bazar)||0);
+    return conf!==orig||Number(p.falta)>0||p.extra==='SIM';
+  });
+  if(divergencias.length){
+    divTit.style.display='block';
+    divTit.textContent='⚠️ Divergências encontradas';
+    divTit.style.color='var(--bad)';
+    divEl.innerHTML=divergencias.map(function(p){
       var orig=Number(p.qtdOriginal)||0;
       var conf=(Number(p.ok)||0)+(Number(p.conserto)||0)+(Number(p.lavagem)||0)+(Number(p.bazar)||0);
-      return conf!==orig||Number(p.falta)>0||p.extra==='SIM';
-    });
-    var divEl=document.getElementById('resumoDiverg');
-    var divTit=document.getElementById('resumoDivergTitulo');
-    if(divergencias.length){
-      divTit.style.display='block';
-      divEl.innerHTML=divergencias.map(function(p){
-        var orig=Number(p.qtdOriginal)||0;
-        var conf=(Number(p.ok)||0)+(Number(p.conserto)||0)+(Number(p.lavagem)||0)+(Number(p.bazar)||0);
-        var diff=conf-orig;
-        return '<div class="diverg-item">'
-          +'<div><div class="diverg-nome">'+(p.modelo||'—')+' — '+(p.tipo||'—')+' | '+(p.cor||'—')+' | '+(p.tam||'—')+'</div>'
-          +'<div class="diverg-det">Enviado: '+orig+' · Conf.: '+conf+(Number(p.falta)>0?' · Falta: '+p.falta:'')+(p.extra==='SIM'?' · ⭐ Extra':'')+'</div></div>'
-          +(diff!==0?'<div class="diverg-diff">'+(diff>0?'+':'')+diff+'</div>':'')
-          +'</div>';
-      }).join('');
-    } else {
-      divTit.style.display='block';
-      document.getElementById('resumoDivergTitulo').textContent='';
-      divEl.innerHTML='<div style="background:var(--ok-bg);border-radius:8px;padding:12px;text-align:center;font-size:13px;font-weight:600;color:var(--ok)">✅ Nenhuma divergência!</div>';
-    }
-  });
+      var diff=conf-orig;
+      return '<div class="diverg-item">'
+        +'<div><div class="diverg-nome">'+(p.modelo||'—')+' — '+(p.tipo||'—')+' | '+(p.cor||'—')+' | '+(p.tam||'—')+'</div>'
+        +'<div class="diverg-det">Enviado: '+orig+' · Conf.: '+conf+(Number(p.falta)>0?' · Falta: '+p.falta:'')+(p.extra==='SIM'?' · ⭐ Extra':'')+'</div></div>'
+        +(diff!==0?'<div class="diverg-diff">'+(diff>0?'+':'')+diff+'</div>':'')
+        +'</div>';
+    }).join('');
+  } else {
+    divTit.style.display='block';
+    divTit.textContent='';
+    divEl.innerHTML='<div style="background:var(--ok-bg);border-radius:8px;padding:12px;text-align:center;font-size:13px;font-weight:600;color:var(--ok)">✅ Nenhuma divergência!</div>';
+  }
 }
 
 function toast(msg){
